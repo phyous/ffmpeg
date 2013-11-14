@@ -27,7 +27,7 @@ OBJS=$(addsuffix .o,$(EXAMPLES))
 decoding_encoding: LDLIBS += -lm
 muxing:            LDLIBS += -lm
 resampling_audio:  LDLIBS += -lm
-stitch: LDLIBS += -lm
+stitch: 		   LDLIBS += -lm
 
 .phony: all clean-test clean
 
