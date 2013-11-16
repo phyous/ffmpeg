@@ -78,7 +78,6 @@ static int decode_write_frame(const char *outfilename, AVCodecContext *avctx,
 	int len, got_frame;
 	char buf[1024];
 
-
 	len = avcodec_decode_video2(avctx, frame, &got_frame, pkt);
 	if (len < 0) {
 		fprintf(stderr, "Error while decoding frame %d\n", *frame_count);
@@ -104,7 +103,7 @@ static int decode_write_frame(const char *outfilename, AVCodecContext *avctx,
 static AVCodecContext* init_codec(int id) {
 	// Decode frames form each file
 	/* find the mpeg1 video decoder */
-	AVCodec* codec = avcodec_find_decoder(AV_CODEC_ID_MPEG4);
+	AVCodec* codec = avcodec_find_decoder(id);
 	if (!codec) {
 		fprintf(stderr, "Codec not found\n");
 		exit(1);
@@ -119,12 +118,12 @@ static AVCodecContext* init_codec(int id) {
 	if (codec->capabilities & CODEC_CAP_TRUNCATED)
 		codec_to_init->flags |= CODEC_FLAG_TRUNCATED; /* we do not send complete frames */
 
-    /* open it */
-    if (avcodec_open2(codec_to_init, codec, NULL) < 0) {
-        fprintf(stderr, "Could not open codec\n");
-        exit(1);
-    }
-    return codec_to_init;
+	/* open it */
+	if (avcodec_open2(codec_to_init, codec, NULL) < 0) {
+		fprintf(stderr, "Could not open codec\n");
+		exit(1);
+	}
+	return codec_to_init;
 }
 
 static void video_stitch(const char *input_file1, const char *input_file2,
@@ -149,7 +148,7 @@ static void video_stitch(const char *input_file1, const char *input_file2,
 	printf("Stitching video files %s and %s to %s\n", input_file1, input_file2,
 			output_file);
 
-	input_codec = init_codec(AV_CODEC_ID_MPEG4);
+	input_codec = init_codec(AV_CODEC_ID_MPEG1VIDEO);
 
 	f1 = open_file(input_file1);
 	f2 = open_file(input_file2);
@@ -160,10 +159,7 @@ static void video_stitch(const char *input_file1, const char *input_file2,
 
 	frame_count1 = 0;
 	frame_count2 = 0;
-	int toggle = 0;
 	for (;;) {
-		printf("frame1:%i frame2:%i", frame_count1, frame_count2);
-
 		avpkt1.size = fread(inbuf1, 1, INBUF_SIZE, f1);
 		avpkt2.size = fread(inbuf2, 1, INBUF_SIZE, f2);
 		if (avpkt1.size == 0 || avpkt1.size == 0)
@@ -172,34 +168,26 @@ static void video_stitch(const char *input_file1, const char *input_file2,
 		avpkt1.data = inbuf1;
 		avpkt2.data = inbuf2;
 
-		//if (toggle == 0) {
-			while (avpkt1.size > 0)
-				if (decode_write_frame(output_file, input_codec, frame1, &frame_count1,
-						&avpkt1, 0) < 0)
-					exit(1);
-//			toggle = 1;
-//		} else {
-//			while (avpkt1.size > 0)
-//				if (decode_write_frame(output_file, c, frame2, &frame_count2,
-//						&avpkt2, 0) < 0)
-//					exit(1);
-//			toggle = 0;
-//		}
+		while (avpkt1.size > 0)
+			if (decode_write_frame(output_file, input_codec, frame1,
+					&frame_count1, &avpkt1, 0) < 0)
+				exit(1);
 	}
-	printf("FINIISHED!");
+	printf("FINIISHED!\n");
 
-    avpkt1.data = NULL;
-    avpkt1.size = 0;
-    decode_write_frame(output_file, input_codec, frame1, &frame_count1, &avpkt1, 1);
+	avpkt1.data = NULL;
+	avpkt1.size = 0;
+	decode_write_frame(output_file, input_codec, frame1, &frame_count1, &avpkt1,
+			1);
 
-    fclose(f1);
-    fclose(f2);
+	fclose(f1);
+	fclose(f2);
 
-    avcodec_close(input_codec);
-    av_free(input_codec);
-    avcodec_free_frame(&frame1);
-    avcodec_free_frame(&frame2);
-    printf("\n");
+	avcodec_close(input_codec);
+	av_free(input_codec);
+	avcodec_free_frame(&frame1);
+	avcodec_free_frame(&frame2);
+	printf("\n");
 }
 
 int main(int argc, char **argv) {
